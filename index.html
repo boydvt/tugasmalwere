@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LKPD: Identifikasi Jenis Malware & Pemilahan Data Privat/Publik - Informatika Kelas X</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23171717'/%3E%3Cpath d='M32 12 L48 18 V30 C48 41 41 49 32 53 C23 49 16 41 16 30 V18 Z' fill='white'/%3E%3Cpath d='M24 32 L30 38 L41 26' fill='none' stroke='%23171717' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #111111;
+    --muted: #525252;
+    --glass: rgba(255, 255, 255, 0.72);
+    --glass-soft: rgba(245, 245, 245, 0.85);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --line: rgba(0, 0, 0, 0.12);
+    --grad: linear-gradient(135deg, #262626 0%, #000000 100%);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color: var(--ink);
+    line-height: 1.65;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(0, 0, 0, 0.035) 0%, transparent 42%),
+      radial-gradient(circle at 88% 12%, rgba(0, 0, 0, 0.03) 0%, transparent 38%),
+      radial-gradient(circle at 60% 95%, rgba(0, 0, 0, 0.04) 0%, transparent 45%),
+      linear-gradient(160deg, #ffffff 0%, #fafafa 50%, #f2f2f2 100%);
+    background-attachment: fixed;
+  }
+  /* Anti-salin hanya aktif di halaman 3 */
+  body[data-halaman="3"] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  input, textarea, select { -webkit-user-select: text; user-select: text; }
+  @media print { body { display: none; } }
+
+  .glass {
+    position: relative;
+    overflow: hidden;
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    backdrop-filter: blur(18px) saturate(160%);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 18px 50px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+  }
+  .glass::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.75), transparent 60%);
+    opacity: 0;
+    transition: opacity .3s ease;
+  }
+  .glass:hover { transform: translateY(-4px); border-color: rgba(0, 0, 0, 0.18); }
+  .glass:hover::after { opacity: 1; }
+  .kamera-kecil.glass:hover { transform: none; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 28px 18px 80px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chip {
+    font-size: .8rem; font-weight: 700; padding: 6px 12px; border-radius: 999px;
+    background: #111111; color: #ffffff; letter-spacing: .02em;
+  }
+  .page-info { margin-bottom: 18px; }
+  header.hero { padding: 28px; margin-bottom: 22px; }
+  header.hero h1 {
+    margin: 0 0 8px;
+    font-size: clamp(1.6rem, 4vw, 2.3rem);
+    font-weight: 800;
+    line-height: 1.2;
+    background: linear-gradient(90deg, #000000 0%, #404040 60%, #737373 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  header.hero p { margin: 0; color: var(--muted); }
+  section.card { padding: 24px; margin-bottom: 20px; }
+  section.card h2 { margin: 0 0 12px; font-size: 1.25rem; font-weight: 800; }
+  .info { font-size: .92rem; color: var(--muted); }
+  ol li, ul li { margin-bottom: 8px; }
+  ol, ul { padding-left: 22px; }
+  strong { color: #000; }
+  a { color: #000; font-weight: 700; }
+  .langkah-judul {
+    display: inline-block; margin: 18px 0 6px; font-size: .9rem; font-weight: 800;
+    letter-spacing: .04em; text-transform: uppercase; color: #111111; padding: 4px 12px;
+    border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.9);
+  }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 10px 0; overflow: hidden; border-radius: 16px; border: 1px solid var(--line); }
+  th, td { padding: 11px 14px; text-align: left; vertical-align: top; }
+  th { background: #111111; color: #ffffff; font-weight: 800; }
+  td { background: rgba(255, 255, 255, 0.9); border-top: 1px solid var(--line); }
+  .tip, .note {
+    padding: 14px 16px 14px 22px; border-radius: 18px; margin: 14px 0;
+    background: var(--glass-soft); border: 1px solid var(--glass-border); position: relative;
+  }
+  .tip::before, .note::before {
+    content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 4px; background: #111111;
+  }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  @media (max-width: 600px) { .fields { grid-template-columns: 1fr; } }
+  .fields label { font-size: .88rem; color: var(--muted); display: block; font-weight: 600; }
+  input[type=text], textarea, select {
+    width: 100%; margin-top: 6px; padding: 12px 14px; border-radius: 16px;
+    border: 1px solid var(--line); background: rgba(255, 255, 255, 0.9); color: #111111;
+    font: inherit; outline: none; transition: border-color .2s, box-shadow .2s, background .2s;
+  }
+  input[type=text]:focus, textarea:focus, select:focus {
+    border-color: #111111; box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.08); background: #ffffff;
+  }
+  textarea { min-height: 100px; resize: vertical; }
+  .q { margin: 16px 0; }
+  .q p { margin: 0 0 4px; font-weight: 700; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; border: none; border-radius: 999px;
+    padding: 13px 22px; font: inherit; font-weight: 800; color: #fff; background: var(--grad);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); cursor: pointer; text-decoration: none;
+    margin: 6px 8px 6px 0; transition: transform .15s, box-shadow .2s;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn.secondary { background: rgba(255, 255, 255, 0.9); color: #111111; border: 1px solid #111111; box-shadow: none; }
+  .btn.secondary:hover { background: #111111; color: #ffffff; }
+  .nav-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 10px; }
+  .nav-row .kanan { margin-left: auto; }
+  #status { margin-top: 12px; font-size: .95rem; font-weight: 700; min-height: 1.5em; }
+  #fallback { display: none; width: 100%; height: 180px; margin-top: 12px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .9rem; }
+  label.check {
+    display: flex; gap: 12px; align-items: center; padding: 12px 14px; margin-bottom: 8px;
+    border-radius: 16px; background: rgba(255, 255, 255, 0.85); border: 1px solid var(--line); cursor: pointer;
+  }
+  label.check input { width: 20px; height: 20px; accent-color: #111111; flex-shrink: 0; }
+  label.check.done { border-color: #111111; font-weight: 700; }
+
+  /* Kartu data */
+  .kartu-grid { display: grid; gap: 12px; margin-top: 10px; }
+  .kartu {
+    padding: 14px 16px; border-radius: 18px; background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
+  }
+  .kartu .isi { font-weight: 700; }
+  .kartu .nomor { font-size: .8rem; color: var(--muted); font-weight: 700; }
+  .kartu select { margin-top: 0; width: auto; min-width: 150px; }
+  .kartu.benar { border-color: #111111; box-shadow: inset 4px 0 0 #111111; }
+  .kartu.salah { border-color: #737373; background: #f0f0f0; box-shadow: inset 4px 0 0 #737373; }
+  .kartu .umpan { grid-column: 1 / -1; font-size: .88rem; color: var(--muted); display: none; }
+  .kartu.dicek .umpan { display: block; }
+  @media (max-width: 600px) { .kartu { grid-template-columns: 1fr; } }
+  .skor {
+    display: inline-block; margin-top: 10px; font-size: 1rem; font-weight: 800;
+    padding: 8px 14px; border-radius: 999px; background: #111111; color: #ffffff;
+  }
+  .kotak-keterangan { font-size: .9rem; color: var(--muted); margin-top: 8px; }
+
+  /* Kamera kecil */
+  .kamera-kecil {
+    position: fixed; right: 14px; bottom: 14px; width: 170px; padding: 6px; z-index: 50; border-radius: 22px;
+  }
+  #preview { width: 100%; display: block; border-radius: 16px; background: #000; transform: scaleX(-1); }
+  .status-pill {
+    display: inline-block; font-size: .88rem; font-weight: 700; padding: 8px 14px;
+    border-radius: 999px; background: #111111; color: #ffffff; margin-top: 6px;
+  }
+
+  /* Peringatan layar penuh */
+  .overlay {
+    position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 9999;
+    display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center;
+    background: rgba(255, 255, 255, 0.82); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  }
+  .kotak {
+    max-width: 960px; width: 100%; padding: 34px 28px; border-radius: 32px;
+    background: rgba(255, 255, 255, 0.85); border: 1px solid var(--glass-border);
+    -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.12);
+  }
+  .kucing {
+    display: block; margin: 0 auto 22px; width: min(88vw, 360px); max-height: 50vh; height: auto;
+    object-fit: contain; border-radius: 24px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
+  }
+  .kotak h2 { margin: 0 0 10px; font-size: clamp(1.8rem, 4.5vw, 2.6rem); font-weight: 800; color: #000000; }
+  .kotak p { margin: 0 0 28px; font-size: clamp(1.05rem, 2.4vw, 1.3rem); color: #262626; font-weight: 600; }
+  .btn-oke {
+    border: none; border-radius: 999px; padding: 16px 56px; font: inherit; font-size: 1.25rem;
+    font-weight: 800; color: #ffffff; background: #111111; cursor: pointer;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2); transition: transform .15s;
+  }
+  .btn-oke:hover { transform: scale(1.04); }
+
+  @media (max-width: 600px) {
+    .kamera-kecil { width: 120px; }
+    section.card { padding: 20px; }
+    header.hero { padding: 22px; }
+  }
+</style>
+</head>
+<body data-halaman="1">
+
+<div id="peringatan" class="overlay" role="alertdialog" aria-modal="true" aria-labelledby="judulPeringatan" aria-describedby="isiPeringatan" hidden>
+  <div class="kotak">
+    <img class="kucing" src="kucing.gif" alt="Kucing yang sedang menyipitkan mata">
+    <h2 id="judulPeringatan">Kamu keluar dari halaman</h2>
+    <p id="isiPeringatan">Semua jawaban dan centang sudah direset. Silakan kerjakan ulang dari awal.</p>
+    <button type="button" id="btnOke" class="btn-oke">Oke, paham</button>
+  </div>
+</div>
+
+<div class="kamera-kecil glass" id="kameraKecil" hidden>
+  <video id="preview" autoplay muted playsinline hidden></video>
+</div>
+
+<div class="wrap">
+
+  <div class="chip-row page-info">
+    <span class="chip" id="stepInfo">Halaman 1 dari 3</span>
+  </div>
+
+  <!-- ================= HALAMAN 1: MATERI ================= -->
+  <div id="page1">
+
+    <header class="hero glass">
+      <div class="chip-row">
+        <span class="chip">Informatika</span>
+        <span class="chip">Kelas X</span>
+        <span class="chip">2 JP &middot; 90 menit</span>
+        <span class="chip">Individu</span>
+      </div>
+      <h1>Identifikasi Jenis Malware &amp; Pemilahan Data Privat/Publik</h1>
+      <p>SMA Telkom Bandung &middot; Kenali ancaman di perangkatmu, dan tahu data mana yang perlu kamu jaga.</p>
+    </header>
+
+    <section class="card glass">
+      <h2>🪪 Identitas</h2>
+      <div class="fields">
+        <div>
+          <label for="nama">Nama lengkap
+            <input type="text" id="nama" placeholder="Tulis nama lengkapmu">
+          </label>
+        </div>
+        <div>
+          <label for="kelas">Kelas
+            <input type="text" id="kelas" placeholder="Contoh: X-2">
+          </label>
+        </div>
+      </div>
+      <p class="tip info">Isian nama dan kelas dipakai untuk menyalin jawaban di halaman 3.</p>
+    </section>
+
+    <section class="card glass">
+      <h2>🎯 Identitas dan Tujuan</h2>
+      <table>
+        <tr><th>Item</th><th>Keterangan</th></tr>
+        <tr><td>Mata pelajaran</td><td>Informatika</td></tr>
+        <tr><td>Kelas</td><td>X (SMA)</td></tr>
+        <tr><td>Alokasi waktu</td><td>2 JP (2 x 45 menit)</td></tr>
+        <tr><td>Jenis tugas</td><td>Individu (LKPD)</td></tr>
+      </table>
+      <p>Setelah belajar, kamu mampu:</p>
+      <ol>
+        <li>menjelaskan pengertian malware dan membedakan jenis-jenisnya;</li>
+        <li>mengenali tanda-tanda perangkat yang terinfeksi malware;</li>
+        <li>memilah data privat dan data publik dengan benar;</li>
+        <li>menentukan langkah pengamanan dasar untuk perangkat dan data pribadi.</li>
+      </ol>
+    </section>
+
+    <section class="card glass">
+      <h2>💭 Pemantik</h2>
+      <p>Jawab dalam hati sebelum mulai:</p>
+      <ol>
+        <li>Pernahkah ponselmu tiba-tiba melambat atau penuh iklan tanpa alasan yang jelas?</li>
+        <li>Dari dua data ini, mana yang lebih berbahaya jika jatuh ke tangan orang asing: nama sekolahmu, atau nomor rekening bankmu?</li>
+      </ol>
+    </section>
+
+    <section class="card glass">
+      <h2>📚 Konsep Dasar</h2>
+      <p><strong>Malware</strong> adalah singkatan dari <em>malicious software</em>, yaitu perangkat lunak yang dibuat untuk merusak, mengganggu, mencuri data, atau mengambil alih perangkat tanpa izin pemiliknya.</p>
+
+      <span class="langkah-judul">Jenis malware</span>
+      <table>
+        <tr><th>Jenis</th><th>Cara kerja</th><th>Tanda di perangkat</th></tr>
+        <tr><td>Virus</td><td>Menempel pada file, lalu menyebar saat file dijalankan</td><td>File berubah atau hilang, program sering error</td></tr>
+        <tr><td>Worm</td><td>Menyebar sendiri lewat jaringan</td><td>Koneksi internet melambat tanpa sebab</td></tr>
+        <tr><td>Trojan</td><td>Menyamar sebagai aplikasi yang berguna</td><td>Muncul aplikasi yang tidak pernah kamu pasang</td></tr>
+        <tr><td>Ransomware</td><td>Mengunci file dan meminta tebusan</td><td>File tidak bisa dibuka, muncul pesan minta bayar</td></tr>
+        <tr><td>Spyware</td><td>Diam-diam merekam aktivitas pengguna</td><td>Baterai cepat habis, data pribadi bocor</td></tr>
+        <tr><td>Keylogger</td><td>Mencatat setiap tombol yang ditekan</td><td>Akun sering diretas</td></tr>
+        <tr><td>Adware</td><td>Menampilkan iklan secara berlebihan</td><td>Pop-up muncul terus-menerus</td></tr>
+        <tr><td>Rootkit</td><td>Menyembunyikan dirinya dari deteksi</td><td>Antivirus tidak menemukan apa-apa, tetapi perangkat tetap bermasalah</td></tr>
+        <tr><td>Botnet</td><td>Menjadikan perangkat bagian dari jaringan yang dikendalikan dari jauh</td><td>Perangkat lambat saat tidak dipakai</td></tr>
+      </table>
+
+      <div class="note info">
+        Ingat: <strong>phishing bukan malware.</strong> Phishing adalah penipuan yang memancingmu memberikan data pribadi lewat pesan atau situs palsu, dan sering menjadi pintu masuk bagi malware.
+      </div>
+
+      <span class="langkah-judul">Data privat dan publik</span>
+      <ul>
+        <li><strong>Data privat:</strong> data pribadi yang hanya boleh diketahui pemiliknya atau pihak yang diberi izin. Contoh: NIK, alamat rumah, nomor ponsel pribadi, kata sandi, nomor rekening.</li>
+        <li><strong>Data publik:</strong> data yang boleh diketahui siapa saja tanpa membahayakan pemiliknya. Contoh: nama sekolah, profil resmi guru di situs sekolah, berita kegiatan yang sudah diumumkan resmi.</li>
+      </ul>
+      <p>Untuk memilah, tanyakan tiga hal berikut:</p>
+      <ol>
+        <li>Apakah data ini bisa dipakai untuk mengenali atau menghubungi seseorang secara pribadi?</li>
+        <li>Apakah pemiliknya sudah mengizinkan data ini disebarkan?</li>
+        <li>Jika data ini jatuh ke tangan orang asing, apakah bisa menimbulkan kerugian?</li>
+      </ol>
+      <p>Jika salah satu jawabanmu <strong>ya</strong>, data itu kemungkinan besar termasuk data privat.</p>
+    </section>
+
+    <div class="nav-row">
+      <span></span>
+      <button class="btn kanan" id="btnKeKegiatanA" type="button">Lanjut ke Kegiatan A →</button>
+    </div>
+  </div>
+
+  <!-- ================= HALAMAN 2: KEGIATAN A ================= -->
+  <div id="page2" hidden>
+
+    <section class="card glass">
+      <h2>🗂️ Kegiatan A: Pilah 10 kartu data</h2>
+      <p>Untuk setiap kartu, pilih <strong>Privat</strong> atau <strong>Publik</strong>. Setelah semua terisi, klik <strong>Periksa jawaban</strong>. Kartu yang benar akan bertanda hitam, dan kartu yang salah akan diberi penjelasan singkat.</p>
+      <div class="kartu-grid" id="kartuGrid"></div>
+      <button class="btn" id="btnPeriksa" type="button">Periksa jawaban</button>
+      <button class="btn secondary" id="btnUlangPilah" type="button">Mulai ulang</button>
+      <div id="skorPilah"></div>
+    </section>
+
+    <div class="nav-row">
+      <button class="btn secondary" id="btnKembaliMateri" type="button">← Kembali ke materi</button>
+      <button class="btn kanan" id="btnKeKegiatanB" type="button">Lanjut ke LKPD →</button>
+    </div>
+  </div>
+
+  <!-- ================= HALAMAN 3: LKPD & PENGUMPULAN ================= -->
+  <div id="page3" hidden>
+
+    <section class="card glass">
+      <h2>📷 Pemantauan kamera</h2>
+      <p class="info">Kamera dipakai untuk memantau wajah dan mendeteksi ponsel selama kamu mengerjakan halaman ini. Video tidak direkam dan tidak dikirim ke mana pun. Semua pemrosesan terjadi di browser ini.</p>
+      <button class="btn" id="btnKamera" type="button" hidden>Coba aktifkan kamera lagi</button>
+      <div id="statusKamera" class="status-pill">Meminta izin kamera...</div>
+    </section>
+
+    <section class="card glass">
+      <h2>🔘 Soal pilihan ganda (20 soal)</h2>
+      <p class="info">Pilih satu jawaban yang paling tepat. Perhatikan ilustrasi dan situasi pada setiap soal.</p>
+      <div id="pg"></div>
+      <button class="btn" id="btnPeriksaPg" type="button">Periksa pilihan ganda</button>
+      <div id="skorPg"></div>
+    </section>
+
+    <section class="card glass">
+      <h2>✍️ LKPD: Jawab pertanyaan dengan kalimatmu sendiri</h2>
+      <p class="info">Jawaban disimpan sementara di browser ini. Jika kamu keluar dari halaman ini, semua jawaban akan direset.</p>
+      <div id="lkpd"></div>
+    </section>
+
+    <section class="card glass">
+      <h2>🛡️ Cek pengamanan perangkatmu</h2>
+      <p class="info">Centang langkah yang sudah kamu terapkan. Bagian ini hanya untuk dirimu sendiri.</p>
+      <div id="checks"></div>
+    </section>
+
+    <section class="card glass">
+      <h2>🏁 Skor akhir</h2>
+      <p class="info">Skor dihitung dari Kegiatan A dan pilihan ganda, yaitu 30 soal. Essay dinilai oleh guru.</p>
+      <button class="btn" id="btnSkorAkhir" type="button">Hitung skor akhir</button>
+      <div id="skorAkhir"></div>
+    </section>
+
+    <section class="card glass">
+      <h2>📤 Pengumpulan</h2>
+      <ol>
+        <li>Klik <strong>Unduh jawaban (PDF)</strong> untuk menyimpan berkas <em>LKPD_Nama_Kelas.pdf</em> ke komputermu. Berkas ini berisi identitas, hasil Kegiatan A, jawaban LKPD, dan cek pengamanan.</li>
+        <li>Buka folder pengumpulan, lalu unggah berkas PDF tadi.</li>
+      </ol>
+      <div class="note info">
+        Keluar dari halaman ini akan mereset semua isian. Unduh PDF sebelum meninggalkan halaman ini.
+      </div>
+      <button class="btn" id="btnUnduh" type="button">📄 Unduh jawaban (PDF)</button>
+      <a class="btn secondary" href="https://drive.google.com/drive/folders/17w7Ep-aeEKYqDyDeiYImxmdJBcbXA2Qs?usp=sharing" target="_blank" rel="noopener">📁 Buka folder pengumpulan</a>
+      <div id="status" aria-live="polite"></div>
+    </section>
+
+    <div class="nav-row">
+      <button class="btn secondary" id="btnKembaliA" type="button">← Kembali ke Kegiatan A</button>
+      <span></span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  var KEY = 'lkpd-malware-privat-publik-v1';
+  var FLAG = 'lkpd-malware-privat-publik-reset';
+
+  // Kunci jawaban: true = Privat, false = Publik
+  var KARTU = [
+    { isi: 'NIK pada KTP', privat: true, umpan: 'NIK adalah nomor identitas unik. Data ini bisa dipakai untuk penyalahgunaan identitas.' },
+    { isi: 'Nama resmi sekolah', privat: false, umpan: 'Nama sekolah sudah dikenal publik dan sering tercantum di situs resmi.' },
+    { isi: 'Alamat rumah', privat: true, umpan: 'Alamat rumah bisa dipakai untuk melacak keberadaan seseorang.' },
+    { isi: 'Jadwal lomba yang diumumkan sekolah', privat: false, umpan: 'Informasi ini memang dibuat untuk diketahui banyak orang.' },
+    { isi: 'Kata sandi akun email', privat: true, umpan: 'Kata sandi harus dirahasiakan. Siapa pun yang tahu bisa masuk ke akunmu.' },
+    { isi: 'Profil guru di situs resmi sekolah', privat: false, umpan: 'Profil resmi dipasang sekolah agar bisa diakses publik.' },
+    { isi: 'Nomor rekening bank', privat: true, umpan: 'Nomor rekening bisa dipakai untuk penipuan keuangan.' },
+    { isi: 'Berita kegiatan sekolah yang sudah diumumkan resmi', privat: false, umpan: 'Berita resmi sekolah memang disebarkan untuk umum.' },
+    { isi: 'Kode OTP yang dikirim ke ponsel', privat: true, umpan: 'Kode OTP hanya untuk kamu. Jangan pernah memberikannya kepada siapa pun.' },
+    { isi: 'Lokasi rumah yang kamu unggah saat liburan', privat: true, umpan: 'Dari lokasi itu, orang lain bisa tahu di mana rumahmu berada.' }
+  ];
+
+  var PERTANYAAN = [
+    'Sebutkan dua jenis malware dan jelaskan cara kerja masing-masing.',
+    'Tuliskan dua tanda bahwa perangkatmu mungkin terinfeksi malware.',
+    'Tuliskan tiga langkah pengamanan yang akan kamu lakukan untuk melindungi data pribadimu.',
+    'Kasus: Ani menerima pesan dari "bank" yang meminta ia memperbarui data melalui tautan. Jelaskan ancaman yang mungkin terjadi dan tindakan yang seharusnya Ani lakukan.',
+    'Mengapa sebuah foto lokasi rumah yang diunggah saat liburan bisa berbahaya? Jelaskan alasanmu.'
+  ];
+
+  var CEKLIS = [
+    'Layar terkunci dengan PIN atau kata sandi',
+    'Sistem operasi dan aplikasi sudah diperbarui',
+    'Aplikasi hanya diunduh dari sumber resmi',
+    'Autentikasi dua langkah aktif pada akun email',
+    'Tidak membuka tautan dari pesan yang tidak dikenal',
+    'Tidak membagikan lokasi rumah saat sedang bepergian'
+  ];
+
+  var state = { nama: '', kelas: '', pilihan: [], pg: [], checks: [], jawaban: [] };
+  var peringatanAktif = false;
+
+  // Pengamanan (peringatan, reset, anti-salin, kamera) hanya aktif di halaman 3
+  function kunciAktif() {
+    return document.body.dataset.halaman === '3';
+  }
+
+  /* ---------- penyimpanan ---------- */
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        var s = JSON.parse(raw);
+        if (s && typeof s === 'object') state = Object.assign(state, s);
+      }
+    } catch (e) { /* penyimpanan tidak tersedia */ }
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* abaikan */ }
+  }
+
+  function tandaiReset() {
+    try { sessionStorage.setItem(FLAG, '1'); } catch (e) { /* abaikan */ }
+  }
+
+  function adaTandaReset() {
+    try { return sessionStorage.getItem(FLAG) === '1'; } catch (e) { return false; }
+  }
+
+  function hapusTandaReset() {
+    try { sessionStorage.removeItem(FLAG); } catch (e) { /* abaikan */ }
+  }
+
+  function esc(t) {
+    return String(t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* ---------- pindah halaman ---------- */
+
+  function tampilHalaman(n) {
+    document.body.dataset.halaman = String(n);
+    document.getElementById('page1').hidden = n !== 1;
+    document.getElementById('page2').hidden = n !== 2;
+    document.getElementById('page3').hidden = n !== 3;
+    document.getElementById('kameraKecil').hidden = n !== 3;
+    document.getElementById('stepInfo').textContent = 'Halaman ' + n + ' dari 3';
+    window.scrollTo(0, 0);
+    document.dispatchEvent(new CustomEvent('halaman-berubah', { detail: n }));
+  }
+
+  /* ---------- reset ---------- */
+
+  function resetSemua() {
+    state = { nama: '', kelas: '', pilihan: [], pg: [], checks: [], jawaban: [] };
+    try { localStorage.removeItem(KEY); } catch (e) { /* abaikan */ }
+    document.getElementById('nama').value = '';
+    document.getElementById('kelas').value = '';
+    document.querySelectorAll('#checks input').forEach(function (c) {
+      c.checked = false;
+      c.parentNode.classList.remove('done');
+    });
+    document.querySelectorAll('#lkpd textarea').forEach(function (t) { t.value = ''; });
+    document.querySelectorAll('#pg input[type=radio]').forEach(function (r) { r.checked = false; });
+    document.getElementById('fallback').style.display = 'none';
+    tampilStatus('');
+  }
+
+  /* ---------- peringatan layar penuh ---------- */
+
+  function tampilPeringatan(judul, pesan) {
+    if (peringatanAktif) return;
+    peringatanAktif = true;
+    hapusTandaReset();
+    document.getElementById('judulPeringatan').textContent = judul;
+    document.getElementById('isiPeringatan').textContent = pesan;
+    document.getElementById('peringatan').hidden = false;
+    setTimeout(function () { document.getElementById('btnOke').focus(); }, 0);
+  }
+
+  function tutupPeringatan() {
+    document.getElementById('peringatan').hidden = true;
+    peringatanAktif = false;
+    document.dispatchEvent(new Event('peringatan-ditutup'));
+  }
+
+  // Dipanggil dari modul kamera. Hanya berfungsi di halaman 3 dan tidak mereset jawaban.
+  window.tampilPeringatanKamera = function (judul, pesan) {
+    if (!kunciAktif()) return;
+    if (peringatanAktif) return;
+    tampilPeringatan(judul, pesan);
+  };
+
+  /* ---------- pelindung salin dan tempel (halaman 3) ---------- */
+
+  function pasangPelindungSalin() {
+    // Di halaman 3, teks jawaban tidak bisa disalin, dipotong, ditempel, atau diseret
+    document.addEventListener('copy', function (e) { if (kunciAktif()) e.preventDefault(); });
+    document.addEventListener('cut', function (e) { if (kunciAktif()) e.preventDefault(); });
+    document.addEventListener('paste', function (e) { if (kunciAktif()) e.preventDefault(); });
+    document.addEventListener('contextmenu', function (e) { if (kunciAktif()) e.preventDefault(); });
+    document.addEventListener('dragstart', function (e) { if (kunciAktif()) e.preventDefault(); });
+    document.addEventListener('drop', function (e) { if (kunciAktif()) e.preventDefault(); });
+    document.addEventListener('keydown', function (e) {
+      if (!kunciAktif()) return;
+      var k = (e.key || '').toLowerCase();
+      var kombinasi = (e.ctrlKey || e.metaKey) && ['c', 'x', 'v', 'a', 'u', 's', 'p'].indexOf(k) !== -1;
+      var pintasLama = (e.ctrlKey || e.shiftKey) && (k === 'insert' || k === 'delete');
+      if (kombinasi || pintasLama) e.preventDefault();
+    });
+  }
+
+  /* ---------- deteksi meninggalkan halaman (hanya halaman 3) ---------- */
+
+  function pasangDeteksiKeluar() {
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') {
+        if (kunciAktif()) { resetSemua(); tandaiReset(); }
+      } else if (kunciAktif() && adaTandaReset()) {
+        peringatanAktif = false;
+        tampilPeringatan('Kamu keluar dari halaman', 'Semua jawaban dan centang sudah direset. Silakan kerjakan ulang dari awal.');
+      }
+    });
+    window.addEventListener('pagehide', function () {
+      if (kunciAktif()) { resetSemua(); tandaiReset(); }
+    });
+    document.getElementById('btnOke').addEventListener('click', tutupPeringatan);
+  }
+
+  /* ---------- Kegiatan A: pilah kartu ---------- */
+
+  function buatKartu() {
+    var wadah = document.getElementById('kartuGrid');
+    var html = '';
+    KARTU.forEach(function (k, i) {
+      var pilih = state.pilihan[i] || '';
+      html += '<div class="kartu" id="kartu' + i + '">' +
+        '<div><div class="nomor">Kartu ' + (i + 1) + '</div><div class="isi">' + esc(k.isi) + '</div></div>' +
+        '<select data-kartu="' + i + '" aria-label="Kategori kartu ' + (i + 1) + '">' +
+          '<option value="">Pilih kategori</option>' +
+          '<option value="privat"' + (pilih === 'privat' ? ' selected' : '') + '>Privat</option>' +
+          '<option value="publik"' + (pilih === 'publik' ? ' selected' : '') + '>Publik</option>' +
+        '</select>' +
+        '<div class="umpan">' + esc(k.umpan) + '</div>' +
+      '</div>';
+    });
+    wadah.innerHTML = html;
+    wadah.addEventListener('change', function (e) {
+      var t = e.target;
+      if (t && t.tagName === 'SELECT') {
+        state.pilihan[Number(t.getAttribute('data-kartu'))] = t.value;
+        save();
+      }
+    });
+  }
+
+  function periksaKartu() {
+    var benar = 0;
+    var belumIsi = 0;
+    KARTU.forEach(function (k, i) {
+      var el = document.getElementById('kartu' + i);
+      var pilih = state.pilihan[i];
+      el.classList.remove('benar', 'salah', 'dicek');
+      if (!pilih) { belumIsi++; return; }
+      var cocok = (pilih === 'privat') === k.privat;
+      el.classList.add('dicek', cocok ? 'benar' : 'salah');
+      if (cocok) benar++;
+    });
+    var pesan = belumIsi > 0 ? '<p class="kotak-keterangan">Masih ada ' + belumIsi + ' kartu yang belum diisi.</p>' : '';
+    document.getElementById('skorPilah').innerHTML =
+      '<span class="skor">Benar: ' + benar + ' dari ' + KARTU.length + '</span>' + pesan;
+  }
+
+  function ulangKartu() {
+    state.pilihan = [];
+    save();
+    buatKartu();
+    document.getElementById('skorPilah').innerHTML = '';
+  }
+
+  /* ---------- LKPD tertulis ---------- */
+
+  function buatLkpd() {
+    var wadah = document.getElementById('lkpd');
+    var html = '';
+    PERTANYAAN.forEach(function (q, i) {
+      html += '<div class="q"><p>' + (i + 1) + '. ' + esc(q) + '</p>' +
+        '<textarea data-q="' + i + '" aria-label="Jawaban nomor ' + (i + 1) + '">' +
+        esc(state.jawaban[i] || '') + '</textarea></div>';
+    });
+    wadah.innerHTML = html;
+    wadah.addEventListener('input', function (e) {
+      var t = e.target;
+      if (t && t.tagName === 'TEXTAREA') {
+        state.jawaban[Number(t.getAttribute('data-q'))] = t.value;
+        save();
+      }
+    });
+  }
+
+  /* ---------- Soal pilihan ganda (20 soal) ---------- */
+
+  // k = indeks jawaban benar (0 = A, 1 = B, 2 = C, 3 = D)
+  var PG = [
+    { t: 'File tugas tiba-tiba tidak bisa dibuka. Nama file berubah dan muncul pesan bahwa korban harus membayar agar file kembali. Jenis malware yang paling mungkin adalah …', o: ['Worm', 'Ransomware', 'Adware', 'Spyware'], k: 1 },
+    { t: 'Sebuah program menyamar sebagai aplikasi kuis. Setelah dijalankan, program itu membuka akses tersembunyi ke komputer. Program tersebut termasuk …', o: ['Trojan', 'Antivirus', 'Cookie', 'Firewall'], k: 0 },
+    { t: 'Malware menyalin dirinya sendiri melalui jaringan tanpa perlu ditempelkan pada file lain. Jenis malware ini adalah …', o: ['Virus', 'Worm', 'Ransomware', 'Adware'], k: 1 },
+    { t: 'Program jahat menempel pada file aplikasi. Saat file tersebut dijalankan, program jahat ikut aktif dan menyebar. Ini merupakan ciri …', o: ['Virus', 'Spyware', 'Rootkit', 'Spam'], k: 0 },
+    { t: 'Iklan pop-up terus muncul setelah seseorang memasang aplikasi gratis dari situs yang tidak dikenal. Jenis malware yang paling sesuai adalah …', o: ['Adware', 'Worm', 'Ransomware', 'Keylogger'], k: 0 },
+    { t: 'Tanpa diketahui pengguna, sebuah aplikasi merekam tombol yang diketik, termasuk kata sandi. Ancaman ini disebut …', o: ['Keylogger', 'Adware', 'Worm', 'Firewall'], k: 0 },
+    { t: 'Aplikasi mencurigakan diam-diam mengumpulkan kebiasaan browsing dan mengirimkannya kepada pihak lain. Ini adalah …', o: ['Spyware', 'Ransomware', 'Virus', 'Backup'], k: 0 },
+    { t: 'Komputer menjadi lambat dan proses tersembunyi berusaha menyembunyikan keberadaan malware dengan hak akses tinggi. Jenis ancaman ini dapat berupa …', o: ['Rootkit', 'Adware', 'Cookie', 'Patch'], k: 0 },
+    { t: 'Pesan mengaku dari layanan resmi dan meminta pengguna mengklik tautan untuk "memperbarui akun". Tindakan paling aman adalah …', o: ['Klik tautan agar akun tidak ditutup', 'Balas dengan kata sandi', 'Periksa alamat pengirim dan buka situs resmi secara langsung', 'Teruskan pesan ke semua teman'], k: 2 },
+    { t: 'Langkah yang paling membantu mencegah infeksi malware adalah …', o: ['Memasang pembaruan keamanan dan mengunduh aplikasi dari sumber tepercaya', 'Mematikan antivirus agar komputer cepat', 'Membuka semua lampiran email', 'Memakai satu kata sandi untuk semua akun'], k: 0 },
+    { t: 'Informasi yang dapat dilihat siapa saja pada laman sekolah, seperti jadwal kegiatan umum, tergolong data …', o: ['Privat', 'Publik', 'Rahasia negara', 'Pribadi sensitif'], k: 1 },
+    { t: 'Nomor induk kependudukan dan foto kartu identitas sebaiknya dikategorikan sebagai data …', o: ['Publik', 'Privat', 'Promosi', 'Umum'], k: 1 },
+    { t: 'Akun media sosial meminta tanggal lahir lengkap dan alamat rumah. Sebelum membagikannya, sebaiknya …', o: ['Bagikan agar profil lengkap', 'Tinjau kebutuhan dan pengaturan privasi', 'Tulis di kolom komentar publik', 'Kirim kepada orang yang baru dikenal'], k: 1 },
+    { t: 'Guru mengunggah daftar nilai lengkap beserta nama siswa ke situs terbuka. Masalah utama tindakan ini adalah …', o: ['Data nilai siswa bersifat privat dan terbuka kepada publik', 'Nilai selalu termasuk data publik', 'Situs terbuka otomatis melindungi data', 'Nama siswa tidak pernah termasuk data pribadi'], k: 0 },
+    { t: 'Foto kegiatan kelas akan diunggah ke akun publik. Cara yang paling tepat adalah …', o: ['Unggah semua foto tanpa memeriksa', 'Minta persetujuan orang yang tampak jelas dan hindari mengungkap informasi sensitif', 'Tambahkan alamat rumah siswa', 'Sertakan nomor telepon setiap siswa'], k: 1 },
+    { t: 'Manakah contoh data yang aman dibagikan secara publik dalam pengumuman sekolah?', o: ['Kata sandi Wi-Fi pribadi', 'Nomor telepon siswa', 'Tanggal lomba yang terbuka untuk umum', 'Nilai rapor seorang siswa'], k: 2 },
+    { t: 'Sebuah peta publik menunjukkan jumlah pengunjung perpustakaan per bulan tanpa nama atau identitas. Data itu telah …', o: ['Dibuka tanpa batas', 'Diringkas sehingga tidak mengidentifikasi individu', 'Diubah menjadi kata sandi', 'Dihapus dari semua sistem'], k: 1 },
+    { t: 'Seseorang mengirim tangkapan layar percakapan pribadi ke grup besar tanpa izin. Sikap yang tepat adalah …', o: ['Meneruskan lagi agar ramai', 'Menghormati privasi dan tidak menyebarkannya', 'Mengunggah ke media sosial', 'Menyimpan lalu menjualnya'], k: 1 },
+    { t: 'Alamat email, nomor telepon, dan lokasi rumah dapat membantu mengenali seseorang. Informasi tersebut termasuk …', o: ['Data pribadi yang perlu dijaga', 'Informasi publik otomatis', 'Data yang tidak berguna', 'Perangkat lunak'], k: 0 },
+    { t: 'Sebelum mengunggah dokumen tugas ke forum umum, tindakan yang tepat adalah …', o: ['Periksa dan hapus identitas atau metadata pribadi yang tidak diperlukan', 'Sertakan kata sandi akun', 'Cantumkan alamat rumah', 'Gunakan nama lengkap teman tanpa izin'], k: 0 }
+  ];
+
+  // Gambar tambahan per nomor soal (indeks mulai dari 0 untuk soal 1)
+  var GAMBAR_SOAL = {
+    0: { src: 'gambar/soal-ransomware.avif', alt: 'Ilustrasi ransomware' },
+    2: { src: 'gambar/soal-ikon-bug.png', alt: 'Ikon kutu dengan tanda bahaya' },
+    7: { src: 'gambar/soal-ikon-komputer-skull.png', alt: 'Layar komputer dengan ikon tengkorak' },
+    18: { src: 'gambar/soal-keamanan-data.avif', alt: 'Ilustrasi keamanan data pribadi' }
+  };
+
+  function buatPg() {
+    state.pg = state.pg || [];
+    var wadah = document.getElementById('pg');
+    var html = '';
+    PG.forEach(function (s, i) {
+      if (i === 0) {
+        html += '<span class="langkah-judul">Bagian A · Identifikasi Malware (soal 1–10)</span>' +
+          '<figure style="margin:12px 0"><img src="gambar/soal-malware.png" alt="Diagram jenis malware" style="max-width:100%;border-radius:14px" onerror="this.parentNode.hidden=true">' +
+          '<figcaption class="info">Referensi gambar: MasteryMind, Malware Types Diagram</figcaption></figure>';
+      }
+      if (i === 10) {
+        html += '<span class="langkah-judul">Bagian B · Data Privat dan Publik (soal 11–20)</span>' +
+          '<figure style="margin:12px 0"><img src="gambar/soal-data-pribadi.png" alt="Poster penyebaran data pribadi di media sosial" style="max-width:100%;border-radius:14px" onerror="this.parentNode.hidden=true">' +
+          '<figcaption class="info">Referensi gambar: JDIH Kemkomdigi, Penyebaran Data Pribadi di Media Sosial</figcaption></figure>';
+      }
+      html += '<div class="q"><p>' + (i + 1) + '. ' + esc(s.t) + '</p>';
+      if (GAMBAR_SOAL[i]) {
+        html += '<figure style="margin:10px 0"><img src="' + GAMBAR_SOAL[i].src + '" alt="' + esc(GAMBAR_SOAL[i].alt) +
+          '" style="max-width:100%;max-height:260px;border-radius:14px" onerror="this.parentNode.hidden=true"></figure>';
+      }
+      s.o.forEach(function (opsi, j) {
+        var cek = state.pg[i] === j ? ' checked' : '';
+        html += '<label class="check"><input type="radio" name="pg' + i + '" value="' + j + '"' + cek + '>' +
+          '<span><strong>' + 'ABCD'.charAt(j) + '.</strong> ' + esc(opsi) + '</span></label>';
+      });
+      html += '</div>';
+    });
+    wadah.innerHTML = html;
+    wadah.addEventListener('change', function (e) {
+      var t = e.target;
+      if (t && t.type === 'radio') {
+        state.pg[Number(t.name.slice(2))] = Number(t.value);
+        save();
+      }
+    });
+  }
+
+  function periksaPg() {
+    state.pg = state.pg || [];
+    var benar = 0, kosong = 0, salah = [];
+    PG.forEach(function (s, i) {
+      var j = state.pg[i];
+      if (j === undefined) { kosong++; return; }
+      if (j === s.k) benar++; else salah.push(i + 1);
+    });
+    var t = '<span class="skor">Benar: ' + benar + ' dari ' + PG.length + '</span>';
+    if (kosong) t += '<p class="kotak-keterangan">Belum dijawab: ' + kosong + ' soal.</p>';
+    if (salah.length) t += '<p class="kotak-keterangan">Nomor yang perlu dicek ulang: ' + salah.join(', ') + '</p>';
+    document.getElementById('skorPg').innerHTML = t;
+  }
+
+  function buatCekLis() {
+    var wadah = document.getElementById('checks');
+    var html = '';
+    CEKLIS.forEach(function (teks, i) {
+      var cek = !!state.checks[i];
+      html += '<label class="check' + (cek ? ' done' : '') + '">' +
+        '<input type="checkbox" data-check="' + i + '"' + (cek ? ' checked' : '') + '>' +
+        '<span>' + esc(teks) + '</span></label>';
+    });
+    wadah.innerHTML = html;
+    wadah.addEventListener('change', function (e) {
+      var t = e.target;
+      if (t && t.matches('input[type=checkbox]')) {
+        var i = Number(t.getAttribute('data-check'));
+        state.checks[i] = t.checked;
+        t.parentNode.classList.toggle('done', t.checked);
+        save();
+      }
+    });
+  }
+
+  function bindIdentitas() {
+    var nama = document.getElementById('nama');
+    var kelas = document.getElementById('kelas');
+    nama.value = state.nama || '';
+    kelas.value = state.kelas || '';
+    nama.addEventListener('input', function () { state.nama = nama.value; save(); });
+    kelas.addEventListener('input', function () { state.kelas = kelas.value; save(); });
+  }
+
+  function teksJawaban() {
+    var baris = [];
+    baris.push('Nama: ' + (state.nama || '-'));
+    baris.push('Kelas: ' + (state.kelas || '-'));
+    baris.push('Tugas: Identifikasi Jenis Malware & Pemilahan Data Privat/Publik');
+    baris.push('');
+    PERTANYAAN.forEach(function (q, i) {
+      baris.push((i + 1) + '. ' + q);
+      baris.push('Jawaban: ' + ((state.jawaban[i] || '').trim() || '-'));
+      baris.push('');
+    });
+    return baris.join('\n');
+  }
+
+  function tampilStatus(pesan) {
+    document.getElementById('status').textContent = pesan;
+  }
+
+  // PDF rapi: header, skor akhir, tabel Kegiatan A dan pilihan ganda, jawaban essay, cek pengamanan
+  function buatPdf() {
+    var lib = window.jspdf && window.jspdf.jsPDF;
+    if (!lib) {
+      tampilStatus('Pustaka PDF belum termuat. Periksa koneksi internet lalu muat ulang halaman.');
+      return;
+    }
+    var doc = new lib({ unit: 'mm', format: 'a4' });
+    var W = 210, M = 16, CW = W - 2 * M, BATAS = 268;
+    var JUDUL_PDF = 'LKPD: Identifikasi Jenis Malware & Pemilahan Data Privat/Publik';
+    var skor = hitungSkor();
+    var y = 0;
+
+    function huruf(ukuran, gaya, warna) {
+      doc.setFont('helvetica', gaya || 'normal');
+      doc.setFontSize(ukuran);
+      doc.setTextColor(warna === undefined ? 17 : warna);
+    }
+
+    function bungkus(teks, lebar) {
+      var hasil = [];
+      String(teks).split(/\r?\n/).forEach(function (p) {
+        hasil = hasil.concat(doc.splitTextToSize(p || ' ', lebar));
+      });
+      return hasil;
+    }
+
+    function halamanBaru() {
+      doc.addPage();
+      huruf(8, 'normal', 120);
+      doc.text(JUDUL_PDF, M, 10);
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.2);
+      doc.line(M, 12, W - M, 12);
+      y = 20;
+    }
+
+    function cek(h) {
+      if (y + h > BATAS) halamanBaru();
+    }
+
+    function judulBagian(teks) {
+      cek(18);
+      doc.setFillColor(17, 17, 17);
+      doc.rect(M, y, 2.5, 8, 'F');
+      huruf(12, 'bold');
+      doc.text(teks, M + 6, y + 6);
+      y += 14;
+    }
+
+    function kepalaTabel(kolom) {
+      doc.setFillColor(17, 17, 17);
+      doc.rect(M, y, CW, 8, 'F');
+      huruf(8.5, 'bold', 255);
+      var x = M;
+      kolom.forEach(function (k) {
+        doc.text(k.judul, x + 2, y + 5.5);
+        x += k.lebar;
+      });
+      y += 8;
+    }
+
+    function tabel(kolom, data) {
+      cek(16);
+      kepalaTabel(kolom);
+      data.forEach(function (baris, idx) {
+        var hasil = baris.map(function (sel, ci) {
+          huruf(8.5, kolom[ci].tebal ? 'bold' : 'normal');
+          return doc.splitTextToSize(String(sel), kolom[ci].lebar - 4);
+        });
+        var n = Math.max.apply(null, hasil.map(function (h) { return h.length; }));
+        var tinggi = n * 4 + 4;
+        if (y + tinggi > BATAS) {
+          halamanBaru();
+          kepalaTabel(kolom);
+        }
+        if (idx % 2 === 1) {
+          doc.setFillColor(243, 243, 243);
+          doc.rect(M, y, CW, tinggi, 'F');
+        }
+        var x = M;
+        hasil.forEach(function (lines, ci) {
+          huruf(8.5, kolom[ci].tebal ? 'bold' : 'normal');
+          lines.forEach(function (l, li) {
+            doc.text(l, x + 2, y + 4.5 + li * 4);
+          });
+          x += kolom[ci].lebar;
+        });
+        y += tinggi;
+        doc.setDrawColor(215);
+        doc.setLineWidth(0.2);
+        doc.line(M, y, M + CW, y);
+      });
+      y += 6;
+    }
+
+    // Kepala halaman pertama
+    doc.setFillColor(17, 17, 17);
+    doc.rect(0, 0, W, 46, 'F');
+    huruf(9, 'bold', 255);
+    doc.text('INFORMATIKA KELAS X  -  SMA TELKOM BANDUNG  -  2 JP', M, 12);
+    huruf(16, 'bold', 255);
+    var judulBaris = doc.splitTextToSize(JUDUL_PDF, CW);
+    judulBaris.forEach(function (l, i) { doc.text(l, M, 22 + i * 8); });
+    huruf(9, 'normal', 220);
+    var tgl = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    doc.text('Dicetak: ' + tgl, M, 22 + judulBaris.length * 8 + 4);
+    y = 56;
+
+    // Identitas
+    doc.setDrawColor(190);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(M, y, CW / 2 - 2, 22, 3, 3);
+    doc.roundedRect(M + CW / 2 + 2, y, CW / 2 - 2, 22, 3, 3);
+    huruf(8, 'normal', 110);
+    doc.text('NAMA', M + 5, y + 7);
+    doc.text('KELAS', M + CW / 2 + 7, y + 7);
+    huruf(11, 'bold');
+    doc.text(state.nama || '-', M + 5, y + 16);
+    doc.text(state.kelas || '-', M + CW / 2 + 7, y + 16);
+    y += 28;
+
+    // Skor akhir
+    cek(34);
+    doc.setFillColor(243, 243, 243);
+    doc.roundedRect(M, y, CW, 30, 3, 3, 'F');
+    huruf(8, 'bold', 110);
+    doc.text('SKOR AKHIR', M + 6, y + 8);
+    doc.text('NILAI', M + CW / 2, y + 8);
+    huruf(20, 'bold');
+    doc.text(skor.benar + ' / ' + skor.total, M + 6, y + 21);
+    doc.text(skor.nilai + ' / 100', M + CW / 2, y + 21);
+    huruf(8, 'normal', 90);
+    doc.text('Kegiatan A: ' + skor.a + ' dari ' + KARTU.length + '   |   Pilihan ganda: ' + skor.pg + ' dari ' + PG.length + '   |   Essay: dinilai guru', M + 6, y + 27);
+    y += 38;
+
+    // Kegiatan A
+    judulBagian('Kegiatan A  -  Pilah 10 kartu data');
+    var dataA = KARTU.map(function (k, i) {
+      var p = state.pilihan[i];
+      var pilihan = p === 'privat' ? 'Privat' : p === 'publik' ? 'Publik' : 'Belum diisi';
+      var status = !p ? 'Belum diisi' : ((p === 'privat') === k.privat ? 'Benar' : 'Salah');
+      return [String(i + 1), k.isi, pilihan, status];
+    });
+    tabel([
+      { judul: 'No', lebar: 12 },
+      { judul: 'Isi kartu', lebar: 90 },
+      { judul: 'Pilihanmu', lebar: 40 },
+      { judul: 'Status', lebar: CW - 142, tebal: true }
+    ], dataA);
+
+    // Pilihan ganda
+    judulBagian('Pilihan ganda  -  20 soal');
+    var dataPg = PG.map(function (s, i) {
+      var j = (state.pg || [])[i];
+      var jawab = j === undefined ? 'Belum dijawab' : 'ABCD'.charAt(j) + '. ' + s.o[j];
+      var status = j === undefined ? 'Belum dijawab' : (j === s.k ? 'Benar' : 'Salah');
+      return [String(i + 1), s.t, jawab, status];
+    });
+    tabel([
+      { judul: 'No', lebar: 12 },
+      { judul: 'Soal', lebar: 88 },
+      { judul: 'Jawabanmu', lebar: 56 },
+      { judul: 'Status', lebar: CW - 156, tebal: true }
+    ], dataPg);
+
+    // Essay
+    judulBagian('LKPD  -  Jawaban essay');
+    PERTANYAAN.forEach(function (q, i) {
+      var jawab = ((state.jawaban || [])[i] || '').trim() || '-';
+      huruf(9, 'bold');
+      doc.splitTextToSize((i + 1) + '. ' + q, CW).forEach(function (l) {
+        cek(4.8);
+        doc.text(l, M, y);
+        y += 4.8;
+      });
+      huruf(9, 'normal', 60);
+      bungkus(jawab, CW - 6).forEach(function (l) {
+        cek(4.8);
+        doc.text(l, M + 6, y);
+        y += 4.8;
+      });
+      y += 4;
+    });
+    y += 2;
+
+    // Cek pengamanan
+    judulBagian('Cek pengamanan perangkat');
+    CEKLIS.forEach(function (t, i) {
+      cek(7);
+      doc.setDrawColor(17);
+      doc.setLineWidth(0.4);
+      doc.rect(M, y - 3.4, 3.6, 3.6);
+      if ((state.checks || [])[i]) {
+        doc.setFillColor(17, 17, 17);
+        doc.rect(M + 0.8, y - 2.6, 2, 2, 'F');
+      }
+      huruf(9.5, 'normal');
+      doc.text(t, M + 7, y);
+      y += 6.5;
+    });
+
+    // Footer
+    var total = doc.getNumberOfPages();
+    for (var h = 1; h <= total; h++) {
+      doc.setPage(h);
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.2);
+      doc.line(M, 284, W - M, 284);
+      huruf(8, 'normal', 120);
+      doc.text('Informatika Kelas X - SMA Telkom Bandung', M, 289);
+      doc.text('Halaman ' + h + ' dari ' + total, W - M, 289, { align: 'right' });
+    }
+
+    var nama = (state.nama || 'Nama').trim().replace(/\s+/g, '_');
+    var kelas = (state.kelas || 'Kelas').trim().replace(/\s+/g, '_');
+    doc.save('LKPD_' + nama + '_' + kelas + '.pdf');
+    tampilStatus('PDF sudah diunduh. Unggah berkas itu ke folder pengumpulan.');
+  }
+
+  // Skor akhir: Kegiatan A (10 soal) dan pilihan ganda (20 soal). Essay dinilai guru.
+  function hitungSkor() {
+    var pg = state.pg || [];
+    var a = 0, pgBenar = 0, pgTerjawab = 0;
+    KARTU.forEach(function (k, i) {
+      var p = state.pilihan[i];
+      if (p && ((p === 'privat') === k.privat)) a++;
+    });
+    PG.forEach(function (s, i) {
+      if (pg[i] !== undefined) pgTerjawab++;
+      if (pg[i] === s.k) pgBenar++;
+    });
+    var total = KARTU.length + PG.length;
+    var benar = a + pgBenar;
+    return {
+      a: a,
+      pg: pgBenar,
+      pgTerjawab: pgTerjawab,
+      benar: benar,
+      total: total,
+      nilai: Math.round((benar / total) * 100)
+    };
+  }
+
+  function tampilSkorAkhir() {
+    var s = hitungSkor();
+    document.getElementById('skorAkhir').innerHTML =
+      '<span class="skor">Skor akhir: ' + s.benar + ' dari ' + s.total + '</span> ' +
+      '<span class="skor">Nilai: ' + s.nilai + ' / 100</span>' +
+      '<p class="kotak-keterangan">Kegiatan A: ' + s.a + ' dari ' + KARTU.length +
+      ' · Pilihan ganda: ' + s.pg + ' dari ' + PG.length +
+      ' · Essay dinilai oleh guru.</p>';
+  }
+
+  // Membuat PDF rapi berisi semua jawaban dari halaman 1 sampai halaman 3
+  function buatPdfLama() {
+    var lib = window.jspdf && window.jspdf.jsPDF;
+    if (!lib) {
+      tampilStatus('Pustaka PDF belum termuat. Periksa koneksi internet lalu muat ulang halaman.');
+      return;
+    }
+    var doc = new lib({ unit: 'mm', format: 'a4' });
+    var W = 210, M = 18, maxW = W - 2 * M, BATAS = 275;
+    var y = 0;
+
+    function cek(h) {
+      if (y + h > BATAS) { doc.addPage(); y = M + 4; }
+    }
+
+    function tulis(teks, ukuran, gaya, indent) {
+      var size = ukuran || 10;
+      var lh = size * 0.5;
+      var x = M + (indent || 0);
+      doc.setFont('helvetica', gaya || 'normal');
+      doc.setFontSize(size);
+      doc.setTextColor(17, 17, 17);
+      String(teks).split(/\r?\n/).forEach(function (paragraf) {
+        var baris = doc.splitTextToSize(paragraf || ' ', maxW - (indent || 0));
+        baris.forEach(function (b) {
+          cek(lh);
+          doc.text(b, x, y);
+          y += lh;
+        });
+      });
+    }
+
+    function seksi(judul) {
+      cek(16);
+      doc.setFillColor(238, 238, 238);
+      doc.rect(M, y, maxW, 9, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(17, 17, 17);
+      doc.text(judul, M + 3, y + 6);
+      y += 14;
+    }
+
+    // Kepala halaman
+    doc.setFillColor(17, 17, 17);
+    doc.rect(0, 0, W, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('INFORMATIKA KELAS X  -  SMA TELKOM BANDUNG  -  2 JP', M, 12);
+    doc.setFontSize(16);
+    var judulBaris = doc.splitTextToSize('LKPD: Identifikasi Jenis Malware & Pemilahan Data Privat/Publik', maxW);
+    doc.text(judulBaris, M, 22);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Dicetak: ' + new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }), M, 36);
+    y = 52;
+
+    // Identitas
+    cek(26);
+    doc.setDrawColor(170, 170, 170);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(M, y, maxW, 20, 3, 3);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(17, 17, 17);
+    doc.text('Nama', M + 5, y + 8);
+    doc.text('Kelas', M + 5, y + 15);
+    doc.setFont('helvetica', 'normal');
+    doc.text(': ' + (state.nama || '-'), M + 25, y + 8);
+    doc.text(': ' + (state.kelas || '-'), M + 25, y + 15);
+    y += 28;
+
+    // Halaman 2: Kegiatan A
+    var benar = 0;
+    seksi('Kegiatan A: Pilah 10 kartu data (Privat / Publik)');
+    KARTU.forEach(function (k, i) {
+      var pilih = state.pilihan[i];
+      var label = pilih === 'privat' ? 'Privat' : pilih === 'publik' ? 'Publik' : 'Belum diisi';
+      var status = 'Belum diisi';
+      if (pilih) {
+        var cocok = (pilih === 'privat') === k.privat;
+        status = cocok ? 'Benar' : 'Salah';
+        if (cocok) benar++;
+      }
+      tulis((i + 1) + '. ' + k.isi, 10, 'bold');
+      tulis('Jawaban: ' + label + '     Status: ' + status, 10, 'normal', 6);
+      y += 2;
+    });
+    tulis('Skor: ' + benar + ' dari ' + KARTU.length, 10, 'bold');
+    y += 6;
+
+    // Halaman 3: pilihan ganda
+    seksi('Pilihan ganda (20 soal)');
+    var pgJawab = state.pg || [];
+    var benarPg = 0;
+    PG.forEach(function (s, i) {
+      var j = pgJawab[i];
+      var jawab = j === undefined ? '-' : 'ABCD'.charAt(j) + '. ' + s.o[j];
+      var status = j === undefined ? 'Belum dijawab' : (j === s.k ? 'Benar' : 'Salah');
+      if (j === s.k) benarPg++;
+      tulis((i + 1) + '. ' + s.t, 10, 'bold');
+      tulis('Jawaban: ' + jawab + '     Status: ' + status, 10, 'normal', 6);
+      y += 2;
+    });
+    tulis('Skor pilihan ganda: ' + benarPg + ' dari ' + PG.length, 10, 'bold');
+    y += 6;
+
+    // Halaman 3: LKPD
+    seksi('LKPD: Jawaban tertulis');
+    PERTANYAAN.forEach(function (q, i) {
+      tulis((i + 1) + '. ' + q, 10, 'bold');
+      tulis((state.jawaban[i] || '').trim() || '-', 10, 'normal', 6);
+      y += 3;
+    });
+    y += 3;
+
+    // Halaman 3: cek pengamanan
+    seksi('Cek pengamanan perangkat');
+    CEKLIS.forEach(function (teks, i) {
+      tulis((state.checks[i] ? '[X]  ' : '[  ]  ') + teks, 10, 'normal', 2);
+    });
+
+    // Nomor halaman
+    var total = doc.getNumberOfPages();
+    for (var h = 1; h <= total; h++) {
+      doc.setPage(h);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text('Informatika Kelas X - SMA Telkom Bandung', M, 288);
+      doc.text('Halaman ' + h + ' dari ' + total, W - M, 288, { align: 'right' });
+    }
+
+    var nama = (state.nama || 'Nama').trim().replace(/\s+/g, '_');
+    var kelas = (state.kelas || 'Kelas').trim().replace(/\s+/g, '_');
+    doc.save('LKPD_' + nama + '_' + kelas + '.pdf');
+    tampilStatus('PDF sudah diunduh. Unggah berkas itu ke folder pengumpulan.');
+  }
+
+  function bindUnduh() {
+    document.getElementById('btnUnduh').addEventListener('click', function () {
+      try {
+        buatPdf();
+      } catch (e) {
+        tampilStatus('PDF tidak bisa dibuat di browser ini. Coba buka berkas di Chrome atau Edge.');
+      }
+    });
+  }
+
+  function pasangNavigasi() {
+    document.getElementById('btnKeKegiatanA').addEventListener('click', function () { tampilHalaman(2); });
+    document.getElementById('btnKembaliMateri').addEventListener('click', function () { tampilHalaman(1); });
+    document.getElementById('btnKeKegiatanB').addEventListener('click', function () { tampilHalaman(3); });
+    document.getElementById('btnKembaliA').addEventListener('click', function () { tampilHalaman(2); });
+    document.getElementById('btnPeriksa').addEventListener('click', periksaKartu);
+    document.getElementById('btnUlangPilah').addEventListener('click', ulangKartu);
+    document.getElementById('btnPeriksaPg').addEventListener('click', periksaPg);
+    document.getElementById('btnSkorAkhir').addEventListener('click', tampilSkorAkhir);
+  }
+
+  load();
+  bindIdentitas();
+  buatKartu();
+  buatPg();
+  buatLkpd();
+  buatCekLis();
+  bindUnduh();
+  pasangPelindungSalin();
+  pasangNavigasi();
+  pasangDeteksiKeluar();
+
+  if (adaTandaReset()) {
+    tampilHalaman(3);
+    tampilPeringatan('Kamu keluar dari halaman', 'Semua jawaban dan centang sudah direset. Silakan kerjakan ulang dari awal.');
+  } else {
+    tampilHalaman(1);
+  }
+
+  document.addEventListener('pointermove', function (e) {
+    var kartu = e.target && e.target.closest ? e.target.closest('.glass') : null;
+    if (!kartu) return;
+    var r = kartu.getBoundingClientRect();
+    kartu.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    kartu.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  });
+})();
+</script>
+
+<script type="module">
+  import { FaceDetector, ObjectDetector, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm';
+
+  /* ---------- PENGATURAN ---------- */
+  var JEDA_WAJAH_HILANG_MS = 2000;
+  var JEDA_HP_MS = 500;
+  var INTERVAL_DETEKSI_MS = 400;
+  var SKOR_MIN_HP = 0.5;
+  var JUDUL_HP = 'Eits!';
+  var PESAN_HP = 'Mau nyoba foto ya? Gaboleh.';
+  var JUDUL_WAJAH = 'Kamu kemana?';
+  var PESAN_WAJAH = 'Kok gaada di kamera?';
+  var JUDUL_DUA_WAJAH = 'Eits!';
+  var PESAN_DUA_WAJAH = 'Ada lebih dari satu wajah di kamera. Kerjakan tugas sendiri ya.';
+
+  var video = document.getElementById('preview');
+  var statusKamera = document.getElementById('statusKamera');
+  var btnKamera = document.getElementById('btnKamera');
+
+  var faceDetector = null;
+  var objectDetector = null;
+  var stream = null;
+  var timer = null;
+  var waktuWajahHilang = 0;
+  var waktuHpTerlihat = 0;
+  var terpicu = false;
+
+  function halamanKunci() {
+    return document.body.dataset.halaman === '3';
+  }
+
+  document.addEventListener('peringatan-ditutup', function () {
+    terpicu = false;
+    waktuWajahHilang = 0;
+    waktuHpTerlihat = 0;
+  });
+
+  function picu(judul, pesan) {
+    if (!halamanKunci()) return;
+    if (terpicu) return;
+    terpicu = true;
+    if (typeof window.tampilPeringatanKamera === 'function') {
+      window.tampilPeringatanKamera(judul, pesan);
+    }
+  }
+
+  function cekKamera() {
+    if (!halamanKunci()) return;
+    if (!faceDetector || !objectDetector || video.readyState < 2) return;
+    var ts = performance.now();
+
+    var hasilWajah = faceDetector.detectForVideo(video, ts);
+    var jumlahWajah = hasilWajah.detections.length;
+
+    var hasilObjek = objectDetector.detectForVideo(video, ts);
+    var adaHp = hasilObjek.detections.some(function (d) {
+      return d.categories.some(function (c) {
+        return c.categoryName === 'cell phone' && c.score >= SKOR_MIN_HP;
+      });
+    });
+
+    var pesanStatus = [];
+
+    if (jumlahWajah === 0) {
+      waktuWajahHilang += INTERVAL_DETEKSI_MS;
+      pesanStatus.push('Wajah tidak terlihat (' + Math.round(waktuWajahHilang / 1000) + ' detik).');
+      if (waktuWajahHilang >= JEDA_WAJAH_HILANG_MS) picu(JUDUL_WAJAH, PESAN_WAJAH);
+    } else {
+      waktuWajahHilang = 0;
+      if (jumlahWajah > 1) {
+        pesanStatus.push('Terdeteksi ' + jumlahWajah + ' wajah.');
+        picu(JUDUL_DUA_WAJAH, PESAN_DUA_WAJAH);
+      } else {
+        pesanStatus.push('Wajah terdeteksi.');
+      }
+    }
+
+    if (adaHp) {
+      waktuHpTerlihat += INTERVAL_DETEKSI_MS;
+      pesanStatus.push('Ponsel terlihat (' + (waktuHpTerlihat / 1000).toFixed(1) + ' detik).');
+      if (waktuHpTerlihat >= JEDA_HP_MS) picu(JUDUL_HP, PESAN_HP);
+    } else {
+      waktuHpTerlihat = 0;
+    }
+
+    statusKamera.textContent = pesanStatus.join(' ');
+  }
+
+  async function siapkanDeteksi() {
+    if (faceDetector && objectDetector) return;
+    var vision = await FilesetResolver.forVisionTasks(
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+    );
+    faceDetector = await FaceDetector.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
+      },
+      runningMode: 'VIDEO',
+      minDetectionConfidence: 0.5
+    });
+    objectDetector = await ObjectDetector.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite'
+      },
+      runningMode: 'VIDEO',
+      scoreThreshold: SKOR_MIN_HP,
+      maxResults: 5
+    });
+  }
+
+  function hentikanKamera() {
+    if (timer) { clearInterval(timer); timer = null; }
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    video.srcObject = null;
+    video.hidden = true;
+    waktuWajahHilang = 0;
+    waktuHpTerlihat = 0;
+    terpicu = false;
+  }
+
+  async function mulaiKamera() {
+    if (stream) return;
+    btnKamera.hidden = true;
+    statusKamera.textContent = 'Meminta izin kamera...';
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      statusKamera.textContent = 'Browser ini tidak mendukung kamera. Gunakan Chrome atau Edge.';
+      btnKamera.hidden = false;
+      return;
+    }
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      video.srcObject = stream;
+      video.hidden = false;
+      statusKamera.textContent = 'Memuat model deteksi...';
+      await siapkanDeteksi();
+      await video.play();
+
+      if (!halamanKunci()) {
+        hentikanKamera();
+        return;
+      }
+
+      statusKamera.textContent = 'Kamera aktif. Mendeteksi wajah dan ponsel...';
+      timer = setInterval(cekKamera, INTERVAL_DETEKSI_MS);
+    } catch (err) {
+      if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+      statusKamera.textContent = 'Kamera tidak bisa dibuka: ' + (err && err.message ? err.message : err);
+      btnKamera.hidden = false;
+    }
+  }
+
+  btnKamera.addEventListener('click', mulaiKamera);
+
+  // Kamera hanya diminta saat halaman 3 dibuka, dan dimatikan saat pindah ke halaman lain
+  document.addEventListener('halaman-berubah', function (e) {
+    if (e.detail === 3) {
+      mulaiKamera();
+    } else {
+      hentikanKamera();
+      statusKamera.textContent = 'Kamera mati. Buka halaman 3 untuk mengaktifkannya.';
+    }
+  });
+
+  window.addEventListener('pagehide', hentikanKamera);
+
+  if (halamanKunci()) {
+    mulaiKamera();
+  }
+</script>
+</body>
+</html>
